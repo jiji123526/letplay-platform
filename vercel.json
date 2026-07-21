@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "vite --host 0.0.0.0 --port $PORT",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/ch/:id", "destination": "/index.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" }
+  ]
+}

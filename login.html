@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>letsplay — 로그인</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: #f7f7f7; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #fff; border-radius: 20px; padding: 36px 28px; max-width: 360px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    .title { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #999; text-align: center; margin-bottom: 28px; }
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border-radius: 10px; overflow: hidden; border: 1px solid #eee; }
+    .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; background: #f8f8f8; color: #999; border: none; font-family: inherit; }
+    .tab.active { background: #fff; color: #222; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; color: #888; font-weight: 600; margin-bottom: 6px; }
+    .field input { width: 100%; padding: 11px 14px; border: 1.5px solid #e0e0e0; border-radius: 12px; font-size: 14px; font-family: inherit; outline: none; background: #f8f8f8; }
+    .field input:focus { border-color: #3b8df0; }
+    .hint { font-size: 11px; color: #bbb; margin-top: 4px; }
+    .btn { width: 100%; padding: 13px; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; color: #fff; background: #3b8df0; cursor: pointer; font-family: inherit; margin-top: 8px; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .error { color: #e74c3c; font-size: 12px; text-align: center; margin-top: 10px; min-height: 18px; }
+    .success { color: #34c759; font-size: 12px; text-align: center; margin-top: 10px; }
+    .signup-fields { display: none; }
+    .signup-fields.active { display: block; }
+    .login-fields.active { display: block; }
+    .login-fields { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title">💬 letsplay</div>
+    <div class="subtitle">나만의 익명 채팅방 만들기</div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="login">로그인</button>
+      <button class="tab" data-tab="signup">가입하기</button>
+    </div>
+
+    <div class="login-fields active" id="loginFields">
+      <div class="field"><label>이메일</label><input type="email" id="loginEmail" /></div>
+      <div class="field"><label>비밀번호</label><input type="password" id="loginPassword" /></div>
+      <button class="btn" id="loginBtn">로그인</button>
+    </div>
+
+    <div class="signup-fields" id="signupFields">
+      <div class="field"><label>이메일</label><input type="email" id="signupEmail" /></div>
+      <div class="field"><label>비밀번호</label><input type="password" id="signupPassword" placeholder="6자 이상" /></div>
+      <div class="field">
+        <label>채널 주소</label>
+        <input type="text" id="signupSlug" placeholder="my-channel" />
+        <div class="hint">yoursite.com/ch/<strong>my-channel</strong> — 영문 소문자, 숫자, 하이픈 (3-30자)</div>
+      </div>
+      <div class="field"><label>채널 이름</label><input type="text" id="signupName" placeholder="표시될 이름" /></div>
+      <button class="btn" id="signupBtn">가입 + 채널 만들기</button>
+    </div>
+
+    <div class="error" id="error"></div>
+    <div class="success" id="success"></div>
+  </div>
+
+  <script type="module">
+    const errorEl = document.getElementById("error");
+    const successEl = document.getElementById("success");
+
+    // tab switching
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("loginFields").classList.toggle("active", tab.dataset.tab === "login");
+        document.getElementById("signupFields").classList.toggle("active", tab.dataset.tab === "signup");
+        errorEl.textContent = "";
+        successEl.textContent = "";
+      });
+    });
+
+    // login
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      if (!email || !password) { errorEl.textContent = "모든 필드를 입력해주세요"; return; }
+
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.message || data.error; return; }
+
+      // store session
+      localStorage.setItem("session", JSON.stringify(data.session));
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      // redirect to dashboard or first channel
+      if (data.channels.length > 0) {
+        window.location.href = `/ch/${data.channels[0].id}`;
+      } else {
+        window.location.href = "/dashboard";
+      }
+    });
+
+    // signup
+    document.getElementById("signupBtn").addEventListener("click", async () => {
+      errorEl.textContent = "";
+      const email = document.getElementById("signupEmail").value.trim();
+      const password = document.getElementById("signupPassword").value;
+      const channelId = document.getElementById("signupSlug").value.trim().toLowerCase();
+      const channelName = document.getElementById("signupName").value.trim();
+
+      if (!email || !password || !channelId) { errorEl.textContent = "모든 필드를 입력해주세요"; return; }
+      if (password.length < 6) { errorEl.textContent = "비밀번호는 6자 이상이어야 합니다"; return; }
+      if (!/^[a-z0-9-]{3,30}$/.test(channelId)) { errorEl.textContent = "채널 주소: 영문 소문자, 숫자, 하이픈 (3-30자)"; return; }
+
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "signup", email, password, channelId, channelName: channelName || channelId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.message || data.error; return; }
+
+      successEl.textContent = "가입 완료! 로그인해주세요";
+      document.querySelector('[data-tab="login"]').click();
+    });
+
+    // if already logged in, redirect
+    const session = localStorage.getItem("session");
+    if (session) {
+      window.location.href = "/dashboard";
+    }
+  </script>
+</body>
+</html>
