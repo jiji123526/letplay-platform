@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { resolve } from "path";
 
 const appVersion = process.env.VERCEL_GIT_COMMIT_SHA || "local";
 
@@ -15,8 +16,9 @@ export default defineConfig({
     target: "es2022",
     sourcemap: false,
     rollupOptions: {
-      output: {
-        inlineDynamicImports: true,
+      input: {
+        main: resolve(__dirname, "index.html"),
+        login: resolve(__dirname, "login.html"),
       },
     },
   },
