@@ -805,7 +805,7 @@ const urlChannel = pathMatch ? pathMatch[1] : (new URLSearchParams(window.locati
 setChannel(urlChannel);
 
 /* ---- Update header to reflect current channel ---- */
-const currentChannelConfig = channels.find(c => c.id === urlChannel) || channels[0];
+const currentChannelConfig = channels.find(c => c.id === urlChannel) || channels[0] || { id: urlChannel, name: urlChannel, emoji: "💬", profile: "", bubble: "#3b8df0", notice: [] };
 
 // passcode is handled by the channel picker before navigation
 sessionStorage.removeItem("ch_switching");

@@ -31,28 +31,32 @@ export function onConnectionChange(cb) {
 }
 
 function monitorConnection() {
-  // Monitor the publicRealtime socket (used for message signals)
-  const socket = publicRealtime.realtime;
+  // Monitor connection via the realtime socket
+  const socket = publicRealtime.realtime?.socket;
   if (!socket) return;
 
-  socket.onOpen(() => {
+  const origOnOpen = socket.onopen;
+  const origOnClose = socket.onclose;
+
+  socket.onopen = function(...args) {
     if (!isConnected) {
       isConnected = true;
       clearTimeout(disconnectTimer);
       disconnectTimer = null;
       connectionListeners.forEach(cb => cb(true));
     }
-  });
+    if (origOnOpen) origOnOpen.apply(this, args);
+  };
 
-  socket.onClose(() => {
-    // Only notify after 3 seconds of disconnect (ignore brief blips)
+  socket.onclose = function(...args) {
     if (!disconnectTimer) {
       disconnectTimer = setTimeout(() => {
         isConnected = false;
         connectionListeners.forEach(cb => cb(false));
       }, 3000);
     }
-  });
+    if (origOnClose) origOnClose.apply(this, args);
+  };
 }
 
 // Start monitoring after first subscription
