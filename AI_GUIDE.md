@@ -199,6 +199,38 @@ Note: `ADMIN_PASSCODE` will be removed once JWT auth is implemented.
 
 ---
 
+---
+
+## Moderation Hierarchy
+
+Two levels of moderation exist in this platform:
+
+### Channel-Level (Channel Owner)
+- Users report messages → channel owner sees in admin panel
+- Owner can delete messages, ban users, manage blocked list
+- This is standard per-channel moderation (already implemented)
+
+### Platform-Level (Platform Admin — the developer)
+- Users report a *channel* or *channel owner* for abuse
+- Channel owner cannot moderate themselves
+- Platform admin (super-admin) reviews these reports
+- Actions: warn owner, suspend channel, delete channel, ban account
+
+| Report type | Who reviews | Example |
+|---|---|---|
+| Message in a channel | Channel owner | "이 사람이 욕함" → owner bans |
+| Channel owner abusive | Platform admin | "방주인이 개인정보 유출" → suspend channel |
+| Illegal content | Platform admin | CSAM, threats → delete immediately |
+| Spam channels | Platform admin | Bot-created rooms → bulk delete |
+
+### When to Build Platform-Level Reports
+- Not needed until 20+ channels owned by other people
+- Required by Korean law (통신사업자 신고처리 의무) at certain user thresholds
+- Needs: `/report-channel` endpoint, super-admin dashboard, email notifications
+- For now, channel-owner moderation is sufficient
+
+---
+
 ## Common Pitfalls
 
 1. `config.js` exports `channels = []` — any code expecting channel data from this array will get empty/undefined. Always fall back to defaults.
