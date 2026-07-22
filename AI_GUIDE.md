@@ -231,6 +231,68 @@ Two levels of moderation exist in this platform:
 
 ---
 
+## Future Features
+
+### RSS Feed
+A machine-readable XML file (`/rss.xml`) listing public channels. RSS readers, search engines, and social platforms can consume it.
+
+**Why it matters for SEO:**
+- Google discovers new pages faster (channels, posts)
+- Aggregator sites can list rooms (free distribution)
+- Shows search engines the site has fresh, updating content
+- Naver/Daum can index Korean content through RSS
+
+**Implementation:**
+- `/api/rss.js` endpoint that generates XML:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>letsplay</title>
+    <link>https://yoursite.com</link>
+    <item>
+      <title>Gaming Chat Room</title>
+      <link>https://yoursite.com/ch/gaming</link>
+      <pubDate>Mon, 21 Jul 2026 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
+```
+- Add `<link rel="alternate" type="application/rss+xml" href="/api/rss">` to HTML head
+- Query `channels` table for public rooms, ordered by `created_at`
+- ~30 minutes of work, runs forever, helps SEO passively
+
+### Social Login (Google, Kakao, Apple)
+All handled by Supabase Auth built-in OAuth providers.
+
+**Setup per provider:**
+1. Enable in Supabase Dashboard → Authentication → Providers
+2. Get Client ID + Secret from provider's developer console
+3. Add redirect URI: `https://<SUPABASE_PROJECT_ID>.supabase.co/auth/v1/callback`
+4. Paste credentials in Supabase
+
+**Client-side code (same for all providers):**
+```js
+const { data, error } = await supabase.auth.signInWithOAuth({
+  provider: 'google', // or 'kakao', 'apple'
+  options: { redirectTo: 'https://yoursite.com/dashboard' }
+});
+```
+
+**Priority:** Google + Kakao first (covers 99% of Korean users). Apple only if App Store is planned ($99/year developer account required).
+
+### Room Privacy Toggle
+- `is_private` boolean on `channels` table
+- Not logged in → "로그인 후 이용할 수 있는 채널입니다"
+- Logged in but not member → "멤버만 입장할 수 있습니다" + request access
+- Needs `members` table: channel_id, uid, role (member/blocked)
+- Owner approves/rejects from admin panel
+
+### Report System (Channel-Level → Platform-Level)
+See "Moderation Hierarchy" section above.
+
+---
+
 ## Common Pitfalls
 
 1. `config.js` exports `channels = []` — any code expecting channel data from this array will get empty/undefined. Always fall back to defaults.
