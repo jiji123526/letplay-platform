@@ -64,6 +64,8 @@ let userInteracted = false;
 let liveActive = localStorage.getItem(`liveActive_${new URLSearchParams(window.location.search).get("ch") || window.location.pathname.match(/^\/ch\/([^/]+)/)?.[1] || "main"}`) === "true";
 let inLiveMode = localStorage.getItem(`inLiveMode_${new URLSearchParams(window.location.search).get("ch") || window.location.pathname.match(/^\/ch\/([^/]+)/)?.[1] || "main"}`) === "true";
 let isFrozen = false;
+let petitionEnabled = true; // whether blocked users can send 1 DM appeal
+let dmEnabled = true;       // whether non-admin users can send DMs
 let reportedMsgIds = new Set(JSON.parse(localStorage.getItem("reportedMsgIds") || "[]"));
 
 /* debounced render — batches rapid updates (reactions, etc.) into one render */
@@ -952,7 +954,7 @@ initAdminPanels({
   urlChannel,
   currentChannelConfig,
   IS_MOCK,
-  getState: () => ({ liveActive, inLiveMode, isFrozen }),
+  getState: () => ({ liveActive, inLiveMode, isFrozen, petitionEnabled, dmEnabled }),
   setState: (updates) => {
     if ("liveActive" in updates) liveActive = updates.liveActive;
     if ("inLiveMode" in updates) inLiveMode = updates.inLiveMode;
@@ -969,6 +971,9 @@ initAdminPanels({
   broadcastRefresh,
   broadcastProfile,
   setFrozen,
+  setPetitionEnabled,
+  setDmEnabled,
+  toggleAdminView,
   blockedUids: () => blockedUids,
   blockedList: () => blockedList,
   doUnblock,
@@ -1063,6 +1068,12 @@ async function doDeleteGallery(id) {
 async function doBlock(uid, reason, fingerprint) {
   if (isAdmin && !IS_MOCK) await adminBlock(uid, reason);
   else await blockUser(uid, reason, fingerprint);
+  // optimistic: update local blocked list immediately
+  if (!blockedList.find(b => b.uid === uid)) {
+    blockedList.push({ uid, fingerprint: fingerprint || "", reason: reason || "" });
+  }
+  blockedUids.add(uid);
+  if (fingerprint) blockedFingerprints.add(fingerprint);
 }
 
 async function doUnblock(uid) {
@@ -1071,6 +1082,9 @@ async function doUnblock(uid) {
     const { unblockUser: ub } = await import("./backend/index.js");
     await ub(uid);
   }
+  // optimistic: update local blocked list immediately
+  blockedList = blockedList.filter(b => b.uid !== uid);
+  blockedUids.delete(uid);
 }
 
 async function doEditMessage(id, newText) {
@@ -1393,8 +1407,8 @@ function checkIfBlocked() {
   }
 
   if (blocked) {
-    if (hasPetitioned) {
-      // already sent petition, fully disabled
+    if (hasPetitioned || !petitionEnabled) {
+      // already sent petition or petition disabled, fully disabled
       input.disabled = true;
       input.placeholder = "차단된 사용자입니다";
       sendBtn.hidden = true;
@@ -1403,7 +1417,7 @@ function checkIfBlocked() {
     } else {
       // allow one DM petition
       input.disabled = false;
-      input.placeholder = "울어봐빌어도좋곸ㅋㅋㅋ (기회1회)";
+      input.placeholder = "이의 제기 (기회 1회)";
       document.querySelector(".input-wrap")?.classList.add("blocked-mode");
       document.querySelector(".input-wrap")?.classList.remove("dm-mode");
       toggleSend();
@@ -1769,7 +1783,7 @@ function subscribeCurrentDm() {
   if (!isAdmin) return;
   dmUnsub = subscribeDm((list) => {
     dmMessages = list;
-    if (!initialLoad) {
+    if (!initialLoad && isAdmin) {
       const merged = [...allMessages, ...dmMessages.map((d) => ({ ...d, dm: true }))];
       merged.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
       messages = merged;
@@ -1799,13 +1813,55 @@ async function setFrozen(frozen) {
   }
 }
 
+function setPetitionEnabled(enabled) {
+  petitionEnabled = enabled;
+  if (IS_MOCK) {
+    localStorage.setItem(`mock_petition_${urlChannel}`, enabled ? "true" : "false");
+  }
+  checkIfBlocked();
+}
+
+function setDmEnabled(enabled) {
+  dmEnabled = enabled;
+  if (IS_MOCK) {
+    localStorage.setItem(`mock_dm_enabled_${urlChannel}`, enabled ? "true" : "false");
+  }
+  // hide/show DM option in plus menu
+  document.querySelector(".plus-menu")?.remove();
+}
+
+let isRealAdmin = false; // true owner status (doesn't change with view toggle)
+
+function toggleAdminView() {
+  isAdmin = !isAdmin;
+  refilterMessages();
+  render();
+  checkIfBlocked();
+  if (!isAdmin) {
+    // show a persistent "돌아가기" banner for returning to admin view
+    const returnBanner = document.createElement("div");
+    returnBanner.className = "admin-return-banner";
+    returnBanner.innerHTML = `<span>사용자 시점으로 보는 중</span><button>관리자로 돌아가기</button>`;
+    returnBanner.querySelector("button").addEventListener("click", () => {
+      returnBanner.remove();
+      isAdmin = true;
+      refilterMessages();
+      render();
+      checkIfBlocked();
+    });
+    document.querySelector(".chat-header").insertAdjacentElement("afterend", returnBanner);
+  } else {
+    document.querySelector(".admin-return-banner")?.remove();
+  }
+}
+
 function showPlusMenu(e) {
   document.querySelector(".plus-menu")?.remove();
 
   const menu = document.createElement("div");
   menu.className = "plus-menu";
   menu.innerHTML = `
-    <button class="plus-menu-item" data-action="dm"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> ${dmMode ? "일반 채팅으로 전환" : "비밀 메시지"}</button>
+    ${dmEnabled || isAdmin ? `<button class="plus-menu-item" data-action="dm"><svg viewBox="0 0 24 24" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> ${dmMode ? "일반 채팅으로 전환" : "비밀 메시지"}</button>` : ""}
     <button class="plus-menu-item" data-action="photo"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg> 사진 보내기</button>
   `;
 
@@ -1814,7 +1870,7 @@ function showPlusMenu(e) {
     photoInput.click();
   });
 
-  menu.querySelector('[data-action="dm"]').addEventListener("click", () => {
+  menu.querySelector('[data-action="dm"]')?.addEventListener("click", () => {
     menu.remove();
     dmMode = !dmMode;
     updateDmUI();
@@ -2139,6 +2195,10 @@ function startChat() {
   // subscribe to freeze state via config table
   if (IS_MOCK) {
     isFrozen = localStorage.getItem(`mock_frozen_${urlChannel}`) === "true";
+    const savedPetition = localStorage.getItem(`mock_petition_${urlChannel}`);
+    if (savedPetition !== null) petitionEnabled = savedPetition === "true";
+    const savedDm = localStorage.getItem(`mock_dm_enabled_${urlChannel}`);
+    if (savedDm !== null) dmEnabled = savedDm === "true";
     checkIfBlocked();
   }
   // freeze state for non-mock loaded via /api/init on page load

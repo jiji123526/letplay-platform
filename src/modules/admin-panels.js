@@ -63,6 +63,16 @@ export function showAdminPanel() {
             <span class="admin-panel-label">${liveActive ? "라이브 종료" : "라이브 시작"}</span>
             <span class="admin-panel-arrow" style="color:${liveActive ? "#e74c3c" : ""}">●</span>
           </button>
+          <button class="admin-panel-item" data-action="guide">
+            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+            <span class="admin-panel-label">사용 가이드</span>
+            <span class="admin-panel-arrow">›</span>
+          </button>
+          <button class="admin-panel-item" data-action="toggle-view">
+            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <span class="admin-panel-label">사용자 시점으로 보기</span>
+            <span class="admin-panel-arrow">›</span>
+          </button>
         </div>
       </div>
     </div>
@@ -73,6 +83,11 @@ export function showAdminPanel() {
 
   panel.querySelector('[data-action="category-channel"]').addEventListener("click", () => { panel.remove(); showChannelCategory(); });
   panel.querySelector('[data-action="category-manage"]').addEventListener("click", () => { panel.remove(); showManageCategory(); });
+  panel.querySelector('[data-action="guide"]').addEventListener("click", () => { panel.remove(); showAdminGuide(); });
+  panel.querySelector('[data-action="toggle-view"]').addEventListener("click", () => {
+    panel.remove();
+    deps.toggleAdminView();
+  });
 
   panel.querySelector('[data-action="freeze"]').addEventListener("click", () => {
     panel.remove();
@@ -156,11 +171,6 @@ function showChannelCategory() {
             <span class="admin-panel-label">채널 비밀번호</span>
             <span class="admin-panel-arrow">›</span>
           </button>
-          <button class="admin-panel-item" data-action="notice">
-            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
-            <span class="admin-panel-label">전체 공지</span>
-            <span class="admin-panel-arrow">›</span>
-          </button>
           <button class="admin-panel-item" data-action="rules">
             <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg></span>
             <span class="admin-panel-label">채널 규칙</span>
@@ -176,7 +186,6 @@ function showChannelCategory() {
   panel.querySelector('[data-action="profile"]').addEventListener("click", () => { panel.remove(); showProfilePanel(); });
   panel.querySelector('[data-action="color"]').addEventListener("click", () => { panel.remove(); showAdminColorPanel(); });
   panel.querySelector('[data-action="passcode"]').addEventListener("click", () => { panel.remove(); showAdminPasscodePanel(); });
-  panel.querySelector('[data-action="notice"]').addEventListener("click", () => { panel.remove(); showNoticeInput(); });
   panel.querySelector('[data-action="rules"]').addEventListener("click", () => { panel.remove(); showRulesPanel(); });
 
   document.body.appendChild(panel);
@@ -205,10 +214,15 @@ function showManageCategory() {
             <span class="admin-panel-label">차단 사용자</span>
             <span class="admin-panel-arrow">›</span>
           </button>
-          <button class="admin-panel-item" data-action="refresh">
-            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg></span>
-            <span class="admin-panel-label">전체 새로고침</span>
-            <span class="admin-panel-arrow">›</span>
+          <button class="admin-panel-item" data-action="petition-toggle">
+            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="admin-panel-label">이의 제기 ${deps.getState().petitionEnabled !== false ? "허용 중" : "차단 중"}</span>
+            <span class="admin-panel-arrow" style="color:${deps.getState().petitionEnabled !== false ? "#34c759" : "#e74c3c"}">●</span>
+          </button>
+          <button class="admin-panel-item" data-action="dm-toggle">
+            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+            <span class="admin-panel-label">비밀 메시지 ${deps.getState().dmEnabled !== false ? "허용 중" : "차단 중"}</span>
+            <span class="admin-panel-arrow" style="color:${deps.getState().dmEnabled !== false ? "#34c759" : "#e74c3c"}">●</span>
           </button>
         </div>
       </div>
@@ -219,14 +233,19 @@ function showManageCategory() {
   panel.addEventListener("click", (e) => { if (e.target === panel) { showAdminPanel(); panel.remove(); } });
   panel.querySelector('[data-action="banned-words"]').addEventListener("click", () => { panel.remove(); showBannedWordsPanel(); });
   panel.querySelector('[data-action="blocked"]').addEventListener("click", () => { panel.remove(); showBlockedPanel(); });
-
-  panel.querySelector('[data-action="refresh"]').addEventListener("click", () => {
+  panel.querySelector('[data-action="petition-toggle"]').addEventListener("click", () => {
+    const current = deps.getState().petitionEnabled !== false;
+    deps.setPetitionEnabled(!current);
     panel.remove();
-    showConfirmDialog("전체 새로고침", "접속 중인 모든 사용자를 새로고침할까요?", () => {
-      deps.broadcastRefresh();
-      banner("새로고침 신호를 보냈습니다");
-      setTimeout(() => window.location.reload(), 500);
-    });
+    showManageCategory();
+    banner(!current ? "이의 제기가 허용됩니다" : "이의 제기가 차단됩니다");
+  });
+  panel.querySelector('[data-action="dm-toggle"]').addEventListener("click", () => {
+    const current = deps.getState().dmEnabled !== false;
+    deps.setDmEnabled(!current);
+    panel.remove();
+    showManageCategory();
+    banner(!current ? "비밀 메시지가 허용됩니다" : "비밀 메시지가 차단됩니다");
   });
 
   document.body.appendChild(panel);
@@ -593,12 +612,54 @@ export function showBannedWordsPanel() {
 }
 
 export function showBlockedPanel() {
-  const { blockedUids, blockedList, doUnblock } = deps;
+  const { blockedUids, blockedList, doUnblock, banner } = deps;
 
   document.querySelector(".blocked-panel")?.remove();
 
   const panel = document.createElement("div");
   panel.className = "blocked-panel";
+
+  function renderList() {
+    const currentList = typeof blockedList === "function" ? blockedList() : blockedList;
+    const listEl = panel.querySelector(".blocked-panel-list");
+    listEl.innerHTML = "";
+
+    if (currentList.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "blocked-panel-empty";
+      empty.textContent = "차단된 사용자가 없습니다";
+      listEl.appendChild(empty);
+    } else {
+      currentList.forEach((blocked) => {
+        const item = document.createElement("div");
+        item.className = "blocked-panel-item";
+        const info = document.createElement("div");
+        info.className = "blocked-panel-info";
+        const uid = document.createElement("span");
+        uid.className = "blocked-panel-uid";
+        uid.textContent = `익명#${String(blocked.uid).slice(-4)}`;
+        info.appendChild(uid);
+        if (blocked.reason) {
+          const reason = document.createElement("span");
+          reason.className = "blocked-panel-reason";
+          reason.textContent = `"${blocked.reason}"`;
+          info.appendChild(reason);
+        }
+        const button = document.createElement("button");
+        button.className = "blocked-panel-unblock";
+        button.textContent = "차단 해제";
+        button.addEventListener("click", async () => {
+          const currentBlockedUids = typeof blockedUids === "function" ? blockedUids() : blockedUids;
+          currentBlockedUids.delete(blocked.uid);
+          await doUnblock(blocked.uid);
+          renderList();
+          banner("차단이 해제되었습니다", "#34c759");
+        });
+        item.append(info, button);
+        listEl.appendChild(item);
+      });
+    }
+  }
 
   panel.innerHTML = `
     <div class="blocked-panel-content">
@@ -610,53 +671,10 @@ export function showBlockedPanel() {
     </div>
   `;
 
-  const listEl = panel.querySelector(".blocked-panel-list");
-  const currentList = typeof blockedList === "function" ? blockedList() : blockedList;
-
-  if (currentList.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "blocked-panel-empty";
-    empty.textContent = "차단된 사용자가 없습니다";
-    listEl.appendChild(empty);
-  } else {
-    currentList.forEach((blocked) => {
-      const item = document.createElement("div");
-      item.className = "blocked-panel-item";
-      const info = document.createElement("div");
-      info.className = "blocked-panel-info";
-      const uid = document.createElement("span");
-      uid.className = "blocked-panel-uid";
-      uid.textContent = `익명#${String(blocked.uid).slice(-4)}`;
-      info.appendChild(uid);
-      if (blocked.reason) {
-        const reason = document.createElement("span");
-        reason.className = "blocked-panel-reason";
-        reason.textContent = `"${blocked.reason}"`;
-        info.appendChild(reason);
-      }
-      const button = document.createElement("button");
-      button.className = "blocked-panel-unblock";
-      button.dataset.uid = blocked.uid;
-      button.textContent = "차단 해제";
-      item.append(info, button);
-      listEl.appendChild(item);
-    });
-  }
-
   panel.querySelector(".blocked-panel-close").addEventListener("click", () => { showAdminPanel(); panel.remove(); });
   panel.addEventListener("click", (e) => { if (e.target === panel) { showAdminPanel(); panel.remove(); } });
 
-  panel.querySelectorAll(".blocked-panel-unblock").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const uid = btn.dataset.uid;
-      const currentBlockedUids = typeof blockedUids === "function" ? blockedUids() : blockedUids;
-      currentBlockedUids.delete(uid);
-      await doUnblock(uid);
-      panel.remove();
-      showBlockedPanel();
-    });
-  });
-
+  renderList();
   document.body.appendChild(panel);
 }
 
@@ -906,5 +924,61 @@ export function showRulesPanel() {
   }
 
   renderPanel();
+  document.body.appendChild(panel);
+}
+
+function showAdminGuide() {
+  document.querySelector(".admin-guide-panel")?.remove();
+
+  const panel = document.createElement("div");
+  panel.className = "admin-guide-panel";
+  panel.innerHTML = `
+    <div class="admin-panel-content" style="max-height:80vh;overflow-y:auto;">
+      <div class="admin-panel-header">
+        <h3>사용 가이드</h3>
+        <button class="admin-guide-close">✕</button>
+      </div>
+      <div class="admin-panel-body admin-body-padded" style="font-size:13px;line-height:1.6;color:#444;">
+        <div class="admin-guide-section">
+          <h4 style="font-weight:500;margin:0 0 8px;color:#222;">관리자 설정 열기</h4>
+          <p style="color:#888;margin:0 0 16px;">우측 상단 ⋮ 메뉴 → 관리자 설정에서 모든 채널 설정을 관리할 수 있습니다.</p>
+        </div>
+        <div class="admin-guide-section">
+          <h4 style="font-weight:500;margin:0 0 8px;color:#222;">채널 설정</h4>
+          <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;margin:0 0 16px;color:#888;">
+            <li>• <strong style="font-weight:500;color:#555;">프로필</strong> — 채널 이름과 프로필 사진 변경. 정사각형 크롭 후 업로드</li>
+            <li>• <strong style="font-weight:500;color:#555;">색상</strong> — 말풍선 기본 색상. 7가지 프리셋 또는 커스텀</li>
+            <li>• <strong style="font-weight:500;color:#555;">비밀번호</strong> — 설정하면 입장 시 비밀번호 필요. 비우면 해제</li>
+            <li>• <strong style="font-weight:500;color:#555;">규칙</strong> — ℹ️ 버튼에 표시되는 채널 규칙. 여러 섹션 추가 가능</li>
+          </ul>
+        </div>
+        <div class="admin-guide-section">
+          <h4 style="font-weight:500;margin:0 0 8px;color:#222;">사용자 관리</h4>
+          <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;margin:0 0 16px;color:#888;">
+            <li>• <strong style="font-weight:500;color:#555;">신고 접수</strong> — 사용자가 메시지를 꾹 눌러 신고하면 🚨 표시로 나타남</li>
+            <li>• <strong style="font-weight:500;color:#555;">차단</strong> — 메시지를 꾹 눌러 즉시 차단. UID + 기기 지문으로 식별</li>
+            <li>• <strong style="font-weight:500;color:#555;">차단 해제</strong> — 관리 → 차단 사용자에서 해제 가능</li>
+            <li>• <strong style="font-weight:500;color:#555;">이의 제기</strong> — 차단된 사용자의 1회 DM 허용. 관리에서 끄기 가능</li>
+            <li>• <strong style="font-weight:500;color:#555;">금지어</strong> — 특정 단어 포함 메시지 자동 차단. 기간 설정 가능</li>
+            <li>• <strong style="font-weight:500;color:#555;">메시지 삭제</strong> — 꾹 눌러 삭제. 답장도 함께 삭제됨</li>
+          </ul>
+        </div>
+        <div class="admin-guide-section">
+          <h4 style="font-weight:500;margin:0 0 8px;color:#222;">특수 기능</h4>
+          <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;margin:0 0 16px;color:#888;">
+            <li>• <strong style="font-weight:500;color:#555;">얼리기</strong> — 일반 채팅 중단. 관리자만 보낼 수 있고 사용자는 DM만 가능</li>
+            <li>• <strong style="font-weight:500;color:#555;">라이브</strong> — 임시 세션 시작. 종료 시 모든 메시지 자동 삭제</li>
+          </ul>
+        </div>
+        <div style="padding:10px 12px;background:#f0f7ff;border-radius:10px;font-size:12px;color:#3b8df0;line-height:1.5;">
+          💡 채널 주소를 공유하면 누구나 익명으로 참여할 수 있습니다.
+        </div>
+      </div>
+    </div>
+  `;
+
+  panel.querySelector(".admin-guide-close").addEventListener("click", () => { showAdminPanel(); panel.remove(); });
+  panel.addEventListener("click", (e) => { if (e.target === panel) { showAdminPanel(); panel.remove(); } });
+
   document.body.appendChild(panel);
 }
