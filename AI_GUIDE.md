@@ -26,11 +26,22 @@ This is a multi-tenant anonymous chat platform. Each registered user creates and
 ## Current State (What Works)
 
 - ✅ Full chat UI (messages, reactions, replies, images, embeds, search, gallery, live mode)
-- ✅ Login/signup page (`/login`)
-- ✅ Auth API (`/api/auth.js` — signup creates user + channel, login returns session)
+- ✅ Login page with Google OAuth + email/password (`/login`)
+- ✅ Signup with email verification (OTP)
+- ✅ Onboarding page with admin guide (`/onboarding`)
+- ✅ Channel ownership → auto admin mode (no passcode)
+- ✅ Admin panel: categorized (채널/관리), guide, view toggle
+- ✅ Channel rules editor (saves to `channels.notice` JSONB)
+- ✅ DM toggle, petition toggle for admin
+- ✅ Optimistic block/unblock (local state updates immediately)
+- ✅ Welcome popup for first-time visitors
 - ✅ Database schema with `channels` table + RLS
+- ✅ `/api/init.js` fetches channel data from `channels` table
+- ✅ `setChannelRules` API action
 - ✅ Deployed and building on Vercel
-- ✅ `/api/init.js` — consolidated initial data endpoint
+- ❌ Admin API still uses passcode (JWT ownership check not done)
+- ❌ No dashboard page
+- ❌ Root `/` shows broken chat (needs redirect)
 
 ---
 
@@ -160,7 +171,7 @@ Key tables:
    - `onXxxBroadcast(callback)` — receiver
    - Registered in `startChat()` inside `if (!IS_MOCK) { initBroadcast(); ... }`
 
-3. **Admin panels:** Categorized (채널/관리). Each sub-panel opens as an overlay. deps passed via `initAdminPanels()`.
+3. **Admin panels:** Categorized (채널/관리) + guide + view toggle. Each sub-panel opens as an overlay. deps passed via `initAdminPanels()`. Admin detected by channel ownership (login-based, no passcode for platform). Includes DM toggle, petition toggle, freeze, live. View toggle lets admin preview as non-admin (persistent return banner).
 
 4. **Mock mode:** `config.js` has `BACKEND = "mock"` / `USE_MOCK = true` for local dev without Supabase. Uses localStorage.
 
