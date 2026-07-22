@@ -35,7 +35,7 @@ export default async function handler(req, res) {
 
   try {
     // fetch all initial data in parallel
-    const [messagesResult, galleryResult, blockedResult, configResults] = await Promise.all([
+    const [messagesResult, galleryResult, blockedResult, configResults, channelResult] = await Promise.all([
       // messages
       supabase
         .from("messages")
@@ -66,6 +66,12 @@ export default async function handler(req, res) {
           `notice_${channelId}`,
           `live_${channelId}`,
         ]),
+      // channel row (for rules/notice)
+      supabase
+        .from("channels")
+        .select("name,profile_image,bubble_color,notice,is_frozen")
+        .eq("id", channelId)
+        .maybeSingle(),
     ]);
 
     if (messagesResult.error) throw messagesResult.error;
@@ -77,14 +83,19 @@ export default async function handler(req, res) {
     const configMap = {};
     (configResults.data || []).forEach(row => { configMap[row.id] = row.text; });
 
+    // channel data (from channels table)
+    const ch = channelResult.data;
+
     const response = {
       messages: (messagesResult.data || []).reverse(),
       gallery: galleryResult.data || [],
       blocked: admin ? (blockedResult.data || []) : null,
       config: {
-        frozen: configMap[`notice_frozen_${channelId}`] === "true",
-        channelName: configMap[`channelName_${channelId}`] || null,
-        profileImage: configMap[`profile_img_${channelId}`] || null,
+        frozen: ch?.is_frozen || configMap[`notice_frozen_${channelId}`] === "true",
+        channelName: ch?.name || configMap[`channelName_${channelId}`] || null,
+        profileImage: ch?.profile_image || configMap[`profile_img_${channelId}`] || null,
+        bubbleColor: ch?.bubble_color || null,
+        rules: ch?.notice || [],
         notice: configMap[`notice_${channelId}`] || "",
         liveStatus: parseLiveStatus(configMap[`live_${channelId}`]),
       },

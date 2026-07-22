@@ -1919,7 +1919,8 @@ emoji-picker {
 .admin-passcode-panel,
 .banned-words-panel,
 .emoji-preset-panel,
-.profile-panel {
+.profile-panel,
+.rules-panel {
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -1957,7 +1958,8 @@ emoji-picker {
 .admin-passcode-close,
 .banned-words-close,
 .emoji-preset-close,
-.profile-panel-close {
+.profile-panel-close,
+.rules-panel-close {
   background: none;
   border: none;
   cursor: pointer;
@@ -2887,4 +2889,72 @@ emoji-picker {
   align-items: center;
   gap: 12px;
   margin-bottom: 24px;
+}
+
+/* ---------- first-time welcome popup ---------- */
+.welcome-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.welcome-popup-content {
+  background: var(--card, #fff);
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+}
+.welcome-popup-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+.welcome-popup-title {
+  font-size: calc(var(--bubble-font-size, 17px) + 2px);
+  font-weight: 700;
+  color: var(--fg, #222);
+  margin-bottom: 16px;
+}
+.welcome-popup-body {
+  text-align: left;
+  margin-bottom: 20px;
+}
+.welcome-popup-body ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.welcome-popup-body li {
+  font-size: calc(var(--bubble-font-size, 17px) - 4px);
+  color: var(--fg, #444);
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+.welcome-popup-body li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--meta, #999);
+}
+.welcome-popup-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: var(--bubble-sent, #3b8df0);
+  color: #fff;
+  font-size: calc(var(--bubble-font-size, 17px) - 2px);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
 }

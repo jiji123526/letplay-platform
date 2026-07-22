@@ -161,6 +161,11 @@ function showChannelCategory() {
             <span class="admin-panel-label">전체 공지</span>
             <span class="admin-panel-arrow">›</span>
           </button>
+          <button class="admin-panel-item" data-action="rules">
+            <span class="admin-panel-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg></span>
+            <span class="admin-panel-label">채널 규칙</span>
+            <span class="admin-panel-arrow">›</span>
+          </button>
         </div>
       </div>
     </div>
@@ -172,6 +177,7 @@ function showChannelCategory() {
   panel.querySelector('[data-action="color"]').addEventListener("click", () => { panel.remove(); showAdminColorPanel(); });
   panel.querySelector('[data-action="passcode"]').addEventListener("click", () => { panel.remove(); showAdminPasscodePanel(); });
   panel.querySelector('[data-action="notice"]').addEventListener("click", () => { panel.remove(); showNoticeInput(); });
+  panel.querySelector('[data-action="rules"]').addEventListener("click", () => { panel.remove(); showRulesPanel(); });
 
   document.body.appendChild(panel);
 }
@@ -780,4 +786,125 @@ function blobToDataUrl(blob) {
     reader.onload = () => resolve(reader.result);
     reader.readAsDataURL(blob);
   });
+}
+
+export function showRulesPanel() {
+  const { urlChannel, currentChannelConfig, IS_MOCK, banner } = deps;
+
+  document.querySelector(".rules-panel")?.remove();
+
+  // load current rules from config
+  let rules = currentChannelConfig.notice || [];
+  if (typeof rules === "string") { try { rules = JSON.parse(rules); } catch { rules = []; } }
+  rules = [...rules]; // clone
+
+  const panel = document.createElement("div");
+  panel.className = "rules-panel";
+
+  function renderPanel() {
+    panel.innerHTML = `
+      <div class="admin-panel-content">
+        <div class="admin-panel-header">
+          <h3>채널 규칙</h3>
+          <button class="rules-panel-close">✕</button>
+        </div>
+        <div class="admin-panel-body admin-body-padded">
+          <div class="rules-sections" id="rulesSections"></div>
+          <button class="admin-save-btn" id="rulesAddSection" style="background:#f4f4f4;color:#666;margin-bottom:12px;">+ 섹션 추가</button>
+          <button class="admin-save-btn" id="rulesSaveBtn">저장</button>
+          <div class="admin-result" id="rulesResult"></div>
+        </div>
+      </div>
+    `;
+
+    const sectionsEl = panel.querySelector("#rulesSections");
+
+    rules.forEach((section, i) => {
+      const sectionEl = document.createElement("div");
+      sectionEl.className = "rules-section";
+      sectionEl.style.marginBottom = "16px";
+      sectionEl.style.padding = "12px";
+      sectionEl.style.borderRadius = "12px";
+      sectionEl.style.border = "1px solid #eee";
+      sectionEl.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <input class="admin-input rules-title" value="${section.title || ""}" placeholder="섹션 제목" style="flex:1;margin-right:8px;" />
+          <button class="rules-remove-section" data-idx="${i}" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:18px;">✕</button>
+        </div>
+        <textarea class="admin-input rules-items" rows="4" placeholder="항목 (한 줄에 하나씩)">${(section.items || []).join("\n")}</textarea>
+      `;
+      sectionsEl.appendChild(sectionEl);
+    });
+
+    // event listeners
+    panel.querySelector(".rules-panel-close").addEventListener("click", () => { showChannelCategory(); panel.remove(); });
+    panel.addEventListener("click", (e) => { if (e.target === panel) { showChannelCategory(); panel.remove(); } });
+
+    function syncRulesFromInputs() {
+      panel.querySelectorAll(".rules-section").forEach((s, i) => {
+        if (rules[i]) {
+          rules[i].title = s.querySelector(".rules-title").value.trim();
+          rules[i].items = s.querySelector(".rules-items").value.split("\n").map(l => l.trim()).filter(Boolean);
+        }
+      });
+    }
+
+    panel.querySelector("#rulesAddSection").addEventListener("click", () => {
+      syncRulesFromInputs();
+      rules.push({ title: "", items: [] });
+      renderPanel();
+    });
+
+    panel.querySelectorAll(".rules-remove-section").forEach(btn => {
+      btn.addEventListener("click", () => {
+        syncRulesFromInputs();
+        rules.splice(parseInt(btn.dataset.idx), 1);
+        renderPanel();
+      });
+    });
+
+    panel.querySelector("#rulesSaveBtn").addEventListener("click", async () => {
+      // collect data from inputs
+      const sections = panel.querySelectorAll(".rules-section");
+      const newRules = [];
+      sections.forEach(s => {
+        const title = s.querySelector(".rules-title").value.trim();
+        const items = s.querySelector(".rules-items").value.split("\n").map(l => l.trim()).filter(Boolean);
+        if (title || items.length > 0) {
+          newRules.push({ title, items });
+        }
+      });
+
+      // save
+      if (!IS_MOCK) {
+        await fetch("/api/admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            passcode: localStorage.getItem("ap") ? atob(localStorage.getItem("ap")) : "",
+            action: "setChannelRules",
+            payload: { channelId: urlChannel, rules: newRules }
+          }),
+        });
+      } else {
+        localStorage.setItem(`mock_rules_${urlChannel}`, JSON.stringify(newRules));
+      }
+
+      // update local config
+      currentChannelConfig.notice = newRules;
+      rules = [...newRules];
+
+      // show/hide the ℹ️ button based on whether rules exist
+      const hdrNotice = document.querySelector(".hdr-notice");
+      if (hdrNotice) hdrNotice.style.display = newRules.length > 0 ? "" : "none";
+
+      const resultEl = panel.querySelector("#rulesResult");
+      resultEl.textContent = "✓ 저장됨";
+      resultEl.style.display = "block";
+      setTimeout(() => { resultEl.style.display = "none"; }, 2000);
+    });
+  }
+
+  renderPanel();
+  document.body.appendChild(panel);
 }

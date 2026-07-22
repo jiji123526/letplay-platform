@@ -271,6 +271,13 @@ export default async function handler(req, res) {
         return res.json({ ok: true });
       }
 
+      case "setChannelRules": {
+        const { channelId, rules } = payload;
+        const { error } = await supabase.from("channels").update({ notice: rules || [] }).eq("id", channelId);
+        if (error) throw error;
+        return res.json({ ok: true });
+      }
+
       default:
         return res.status(400).json({ error: "Unknown action" });
     }

@@ -10,6 +10,8 @@
    ============================================================ */
 
 import { initAuth, initFromServer, onConnectionChange, subscribe, sendMessage, removeMessage, softDeleteMessage, editMessage, addReaction as addReactionBackend, removeReaction as removeReactionBackend, blockUser, getBlockedUsers, subscribeBlocked, sendDm, removeDm, subscribeDm, saveToGallery, subscribeGallery, removeFromGallery, setNotice, subscribeNotice, searchMessages, loadMoreMessages, setChannel, setAdminCredential, setClientFingerprint, getChannelPasscode, subscribeLiveStatus, broadcastLiveStatus, subscribeLivePresence, initBroadcast, onEditBroadcast, onEmojiBroadcast, broadcastEdit, broadcastDelete, onDeleteBroadcast, broadcastRefresh, onRefreshBroadcast, broadcastFreeze, onFreezeBroadcast, broadcastProfile, onProfileBroadcast, broadcastEmoji, IS_MOCK } from "./backend/index.js";
+import { createClient } from "@supabase/supabase-js";
+import { supabaseConfig } from "../config.js";
 import { verifyAdmin, setAdminPasscode, getAdminPasscode, adminDeleteMessage, adminDeleteMessages, adminUpdateMessage, adminBlock, adminUnblock, adminDeleteDm, adminDeleteGallery, adminSetNotice, adminSetColor, adminGetColor, adminSetPasscode, adminGetPasscode, adminStartLive, adminEndLive } from "./admin/api.js";
 import { embedTwitter, embedInstagram, embedYouTube, fetchLinkPreview } from "./modules/embeds.js";
 import { compressImage, getImageDimensions, showFullImage as showFullImageBase } from "./modules/photo.js";
@@ -48,32 +50,7 @@ let myUid   = null;
 let myNick  = "";          // derived from uid on sign-in (anonymous tag)
 const myFingerprint = generateFingerprint();
 setClientFingerprint(myFingerprint);
-let isAdmin = localStorage.getItem("isAdmin") === "true";
-// restore admin passcode for API calls
-if (isAdmin) {
-  const storedPass = localStorage.getItem("ap");
-  if (storedPass) {
-    const passcode = atob(storedPass);
-    setAdminPasscode(passcode);
-    setAdminCredential(passcode);
-    // verify stored passcode is still valid
-    if (!IS_MOCK) {
-      verifyAdmin(passcode).then((valid) => {
-        if (valid !== true) {
-          isAdmin = false;
-          localStorage.setItem("isAdmin", "false");
-          localStorage.removeItem("ap");
-          setAdminPasscode(null);
-          setAdminCredential(null);
-        }
-      }).catch(() => {});
-    }
-  } else {
-    // no stored passcode — revoke admin
-    isAdmin = false;
-    localStorage.setItem("isAdmin", "false");
-  }
-}
+let isAdmin = false; // determined by channel ownership check in initAuth
 let messages = [];               // filtered list for rendering
 let allMessages = [];            // unfiltered list for lookups
 let dmMessages = [];             // DM messages (admin only)
@@ -328,8 +305,8 @@ function render() {
 
   // only auto-scroll if user was already near the bottom
   if (!hasScrolledInitial) {
-    // only reveal when real messages are loaded (not just DMs)
-    if (allMessages.length > 0 || !isAdmin) {
+    // reveal when data is loaded (even if no messages exist)
+    if (allMessages.length > 0 || !isAdmin || galleryLoaded) {
       hasScrolledInitial = true;
       requestAnimationFrame(() => {
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -805,7 +782,13 @@ const urlChannel = pathMatch ? pathMatch[1] : (new URLSearchParams(window.locati
 setChannel(urlChannel);
 
 /* ---- Update header to reflect current channel ---- */
-const currentChannelConfig = channels.find(c => c.id === urlChannel) || channels[0] || { id: urlChannel, name: urlChannel, emoji: "💬", profile: "", bubble: "#3b8df0", notice: [] };
+const currentChannelConfig = channels.find(c => c.id === urlChannel) || channels[0] || { id: urlChannel, name: urlChannel, emoji: "💬", profile: "/profile.jpg", bubble: "#3b8df0", notice: [] };
+
+// load saved rules from localStorage (mock) or DB
+if (IS_MOCK) {
+  const savedRules = localStorage.getItem(`mock_rules_${urlChannel}`);
+  if (savedRules) { try { currentChannelConfig.notice = JSON.parse(savedRules); } catch {} }
+}
 
 // passcode is handled by the channel picker before navigation
 sessionStorage.removeItem("ch_switching");
@@ -1015,6 +998,21 @@ initSettings({
 initAuth().then(async (uid) => {
   myUid = uid;
   myNick = anonNameFor(uid);
+  // check if logged-in user owns this channel → auto admin mode
+  if (!IS_MOCK) {
+    const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: channel } = await supabase.from("channels").select("owner_uid").eq("id", urlChannel).single();
+      if (channel && channel.owner_uid === session.user.id) {
+        isAdmin = true;
+        localStorage.setItem("isAdmin", "true");
+      }
+    }
+  } else {
+    // mock mode: use localStorage flag for testing
+    isAdmin = localStorage.getItem("isAdmin") === "true";
+  }
   if (isAdmin) syncAdminColor();
   // pre-load all initial data in one request before starting subscriptions
   if (!IS_MOCK) {
@@ -1023,7 +1021,13 @@ initAuth().then(async (uid) => {
     const d = await Promise.race([initPromise, timeoutPromise]);
     if (d?.config?.channelName) document.querySelector(".hdr-name").textContent = d.config.channelName;
     if (d?.config?.profileImage) document.querySelector(".hdr-avatar-img").src = d.config.profileImage;
+    if (d?.config?.bubbleColor) document.documentElement.style.setProperty("--bubble-sent", d.config.bubbleColor);
     if (d?.config?.frozen) { isFrozen = true; checkIfBlocked(); }
+    if (d?.config?.rules?.length > 0) {
+      currentChannelConfig.notice = d.config.rules;
+      const hdrNotice = document.querySelector(".hdr-notice");
+      if (hdrNotice) hdrNotice.style.display = "";
+    }
   }
   showEntryGate();          // always starts, even if init timed out
 }).catch((e) => {
@@ -1964,7 +1968,7 @@ function showLinks() {
 }
 
 /* ============================================================
-   ADMIN TOGGLE — long press header avatar to toggle admin mode
+   ADMIN TOGGLE — determined by channel ownership (login-based)
    ============================================================ */
 function refilterMessages() {
   if (!isAdmin) {
@@ -1978,49 +1982,12 @@ function refilterMessages() {
 
 (function() {
   const avatar = document.querySelector(".hdr-avatar");
-  const header = document.querySelector(".chat-header");
-  if (!avatar || !header) return;
+  if (!avatar) return;
 
   // avatar tap → channel picker
   avatar.addEventListener("click", () => {
     if (channels.length > 1) showChannelPicker();
   });
-
-  // header name long press → admin toggle
-  let pressTimer = null;
-  header.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    pressTimer = setTimeout(async () => {
-      pressTimer = null;
-      if (isAdmin) {
-        isAdmin = false;
-        localStorage.setItem("isAdmin", "false");
-        localStorage.removeItem("ap");
-        setAdminPasscode(null);
-        setAdminCredential(null);
-        location.reload();
-      } else {
-        const pass = prompt("관리자 비밀번호:");
-        if (pass) {
-          const valid = IS_MOCK ? true : await verifyAdmin(pass);
-          if (valid === true) {
-            setAdminPasscode(pass);
-            setAdminCredential(pass);
-            isAdmin = true;
-            localStorage.setItem("isAdmin", "true");
-            localStorage.setItem("ap", btoa(pass));
-            location.reload();
-          } else if (valid === "rate_limited") {
-            banner("그만해라");
-          } else {
-            banner("나이스시도 ㅋ");
-          }
-        }
-      }
-    }, 800);
-  });
-  header.addEventListener("pointerup", () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
-  header.addEventListener("pointerleave", () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
 })();
 
 /* ============================================================
@@ -2029,9 +1996,41 @@ function refilterMessages() {
 /* ============================================================
    NOTICE / USER GUIDE
    ============================================================ */
-document.querySelector(".hdr-notice")?.addEventListener("click", () => {
-  showNoticePanel();
-});
+// rules/notice button — only visible if owner added rules
+const hdrNoticeBtn = document.querySelector(".hdr-notice");
+if (hdrNoticeBtn) {
+  const hasRules = currentChannelConfig.notice && currentChannelConfig.notice.length > 0;
+  hdrNoticeBtn.style.display = hasRules ? "" : "none";
+  hdrNoticeBtn.addEventListener("click", () => { showNoticePanel(); });
+}
+
+// first-time welcome popup
+(function showWelcomeOnce() {
+  const key = `welcomed_${urlChannel}`;
+  if (localStorage.getItem(key)) return;
+  localStorage.setItem(key, "true");
+
+  const overlay = document.createElement("div");
+  overlay.className = "welcome-popup";
+  overlay.innerHTML = `
+    <div class="welcome-popup-content">
+      <div class="welcome-popup-icon">💬</div>
+      <div class="welcome-popup-title">환영합니다!</div>
+      <div class="welcome-popup-body">
+        <ul>
+          <li>메시지를 꾹 누르면 답장, 리액션, 신고가 가능합니다</li>
+          <li>본인이 보낸 메시지는 삭제 및 수정할 수 있습니다</li>
+          <li>비밀 메시지는 채널 관리자에게만 전달됩니다</li>
+          <li>우측 상단 메뉴에서 설정, 갤러리, 링크를 확인할 수 있습니다</li>
+        </ul>
+      </div>
+      <button class="welcome-popup-btn">확인</button>
+    </div>
+  `;
+  overlay.querySelector(".welcome-popup-btn").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+})();
 
 document.querySelector(".hdr-menu")?.addEventListener("click", (e) => {
   showHeaderMenu(e);

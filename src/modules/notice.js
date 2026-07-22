@@ -167,8 +167,8 @@ export function showNoticePanel() {
 
   document.querySelector(".notice-panel")?.remove();
 
-  const sections = currentChannelConfig.notice || [];
-  const sectionsHtml = sections.map(s => `
+  const ownerSections = currentChannelConfig.notice || [];
+  const sectionsHtml = ownerSections.map(s => `
     <div class="notice-section">
       <h4>${s.title}</h4>
       <ul>${s.items.map(i => `<li>${i}</li>`).join("")}</ul>
@@ -185,7 +185,7 @@ export function showNoticePanel() {
         <button class="notice-panel-close">✕</button>
       </div>
       <div class="notice-panel-body">
-        ${sectionsHtml || '<div style="color:var(--meta);text-align:center;padding:20px">공지사항이 없습니다</div>'}
+        ${sectionsHtml}
       </div>
     </div>
   `;
