@@ -6,6 +6,7 @@
   "rewrites": [
     { "source": "/ch/:id", "destination": "/index.html" },
     { "source": "/login", "destination": "/login.html" },
+    { "source": "/onboarding", "destination": "/onboarding.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" }
   ]
 }

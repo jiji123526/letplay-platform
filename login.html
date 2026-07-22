@@ -21,6 +21,11 @@
     .hint { font-size: 11px; color: #bbb; margin-top: 4px; }
     .btn { width: 100%; padding: 13px; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; color: #fff; background: #3b8df0; cursor: pointer; font-family: inherit; margin-top: 8px; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; background: #fff; color: #333; border: 1.5px solid #e0e0e0; font-weight: 600; }
+    .google-btn:hover { background: #f8f8f8; }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+    .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #e8e8e8; }
+    .divider span { font-size: 12px; color: #999; }
     .error { color: #e74c3c; font-size: 12px; text-align: center; margin-top: 10px; min-height: 18px; }
     .success { color: #34c759; font-size: 12px; text-align: center; margin-top: 10px; }
     .signup-fields { display: none; }
@@ -40,21 +45,25 @@
     </div>
 
     <div class="login-fields active" id="loginFields">
+      <button class="btn google-btn" id="googleLoginBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Google로 로그인
+      </button>
+      <div class="divider"><span>또는</span></div>
       <div class="field"><label>이메일</label><input type="email" id="loginEmail" /></div>
       <div class="field"><label>비밀번호</label><input type="password" id="loginPassword" /></div>
       <button class="btn" id="loginBtn">로그인</button>
     </div>
 
     <div class="signup-fields" id="signupFields">
+      <button class="btn google-btn" id="googleSignupBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Google로 가입하기
+      </button>
+      <div class="divider"><span>또는</span></div>
       <div class="field"><label>이메일</label><input type="email" id="signupEmail" /></div>
       <div class="field"><label>비밀번호</label><input type="password" id="signupPassword" placeholder="6자 이상" /></div>
-      <div class="field">
-        <label>채널 주소</label>
-        <input type="text" id="signupSlug" placeholder="my-channel" />
-        <div class="hint">yoursite.com/ch/<strong>my-channel</strong> — 영문 소문자, 숫자, 하이픈 (3-30자)</div>
-      </div>
-      <div class="field"><label>채널 이름</label><input type="text" id="signupName" placeholder="표시될 이름" /></div>
-      <button class="btn" id="signupBtn">가입 + 채널 만들기</button>
+      <button class="btn" id="signupBtn">가입하기</button>
     </div>
 
     <div class="error" id="error"></div>
@@ -62,8 +71,33 @@
   </div>
 
   <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    const supabase = createClient(
+      "https://xoqkmaeizhgjgrktktjf.supabase.co",
+      "sb_publishable_QRpPwXj2V-ROceoR8fXYgg_5K9pvlbF"
+    );
+
     const errorEl = document.getElementById("error");
     const successEl = document.getElementById("success");
+
+    // Google OAuth login
+    document.getElementById("googleLoginBtn").addEventListener("click", async () => {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + "/onboarding" }
+      });
+      if (error) { errorEl.textContent = error.message; }
+    });
+
+    // Google OAuth signup (same flow — Supabase auto-creates account on first sign-in)
+    document.getElementById("googleSignupBtn").addEventListener("click", async () => {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + "/onboarding" }
+      });
+      if (error) { errorEl.textContent = error.message; }
+    });
 
     // tab switching
     document.querySelectorAll(".tab").forEach(tab => {
@@ -96,12 +130,8 @@
       localStorage.setItem("session", JSON.stringify(data.session));
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      // redirect to dashboard or first channel
-      if (data.channels.length > 0) {
-        window.location.href = `/ch/${data.channels[0].id}`;
-      } else {
-        window.location.href = "/dashboard";
-      }
+      // redirect to onboarding (handles routing: has channel → chat, no channel → create)
+      window.location.href = "/onboarding";
     });
 
     // signup
@@ -109,20 +139,12 @@
       errorEl.textContent = "";
       const email = document.getElementById("signupEmail").value.trim();
       const password = document.getElementById("signupPassword").value;
-      const channelId = document.getElementById("signupSlug").value.trim().toLowerCase();
-      const channelName = document.getElementById("signupName").value.trim();
 
-      if (!email || !password || !channelId) { errorEl.textContent = "모든 필드를 입력해주세요"; return; }
+      if (!email || !password) { errorEl.textContent = "모든 필드를 입력해주세요"; return; }
       if (password.length < 6) { errorEl.textContent = "비밀번호는 6자 이상이어야 합니다"; return; }
-      if (!/^[a-z0-9-]{3,30}$/.test(channelId)) { errorEl.textContent = "채널 주소: 영문 소문자, 숫자, 하이픈 (3-30자)"; return; }
 
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "signup", email, password, channelId, channelName: channelName || channelId }),
-      });
-      const data = await res.json();
-      if (!res.ok) { errorEl.textContent = data.message || data.error; return; }
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) { errorEl.textContent = error.message; return; }
 
       successEl.textContent = "가입 완료! 로그인해주세요";
       document.querySelector('[data-tab="login"]').click();
@@ -131,7 +153,7 @@
     // if already logged in, redirect
     const session = localStorage.getItem("session");
     if (session) {
-      window.location.href = "/dashboard";
+      window.location.href = "/onboarding";
     }
   </script>
 </body>
